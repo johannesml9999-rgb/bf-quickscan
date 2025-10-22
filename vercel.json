@@ -1,8 +1,7 @@
 {
-  "version": 2,
   "functions": {
-    "api/quickscan/*.js": {
-      "runtime": "nodejs22.x"
+    "api/**/*.{js,ts}": {
+      "runtime": "nodejs20.x"
     }
   }
 }
