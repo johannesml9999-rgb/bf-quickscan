@@ -1,5 +1,5 @@
 (function(){
-  const API_BASE = "https://bf-quickscan.vercel.app";
+  const API_BASE = "https://bf-quickscan-zder.vercel.app";
 
   function el(tag, attrs={}, ...kids){
     const e = document.createElement(tag);
