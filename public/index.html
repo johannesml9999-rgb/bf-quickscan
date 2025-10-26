@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Businessfalken QuickScan</title>
+    <style>
+      :root { --brand:#0F172A; }
+      body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:24px;line-height:1.45;background:#fff}
+      .card{max-width:820px;margin:auto}
+      h1{color:var(--brand);margin:0 0 .25rem}
+      p{margin:.25rem 0 1rem;color:#475569}
+      .note{background:#F1F5F9;border:1px solid #E2E8F0;padding:8px 12px;border-radius:8px;margin-bottom:14px;color:#334155}
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>QuickScan</h1>
+      <p>Bitte E-Mail und Fokus eingeben. Danach erscheinen die 6 Felder.</p>
+      <div class="note">Demo-Seite über Vercel. Diese Seite kannst du per iFrame in WordPress einbetten.</div>
+      <div id="bf-quickscan"></div>
+    </div>
+    <!-- lädt dein Widget -->
+    <script src="/quickscan.js" defer></script>
+  </body>
+</html>
