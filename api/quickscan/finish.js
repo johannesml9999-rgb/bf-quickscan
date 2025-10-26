@@ -143,6 +143,39 @@ async function makePdfBuffer({ company, focus, contact, cells, selections, cellS
   return done;
 }
 
+function scoreColor(x) {
+  if (x < 1.0) return "#E53935";   // rot
+  if (x < 2.0) return "#FB8C00";   // orange
+  return "#43A047";                // grün
+}
+function scoreLabel(x) {
+  if (x < 1.0) return "🔴 kritisch";
+  if (x < 2.0) return "🟠 schwankend";
+  return "🟢 stabil";
+}
+
+// hübscher Balken (0–3 -> 0–100%)
+function drawBar(doc, x, y, w, h, score) {
+  const pct = Math.max(0, Math.min(1, score / 3));
+  doc.save();
+  doc.roundedRect(x, y, w, h, 3).fill("#ECEFF1");
+  doc.fillColor(scoreColor(score))
+     .roundedRect(x, y, w * pct, h, 3)
+     .fill();
+  doc.restore();
+}
+
+// kleine farbige „Badge“
+function badge(doc, text, color, x, y) {
+  const pad = 4;
+  const w = doc.widthOfString(text) + pad*2;
+  const h = 14;
+  doc.save();
+  doc.fillColor(color).roundedRect(x, y, w, h, 7).fill();
+  doc.fillColor("#FFFFFF").fontSize(9).text(text, x+pad, y+2, {width:w, align:"center"});
+  doc.restore();
+}
+
 export default async function handler(req, res) {
   // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
