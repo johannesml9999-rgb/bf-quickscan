@@ -210,8 +210,10 @@ Fokus: ${focus}
 Schlechteste Zellen: ${"${worst.map(w=>w.id).join(\", \")}"}
 
 Liefere:
-- "decision_questions": genau 3 kurze Ja/Nein-taugliche Fragen, um den kleinsten wirksamen Hebel zu finden.
-- "experiments": genau 2 Experimente für 30 Tage, Felder: ziel, massnahme, owner, start (heute+7), metrik, checkin (wöch. 10 min).
+- decision_questions: genau 3 Ja/Nein-taugliche Fragen, spezifisch für die SCHLECHTESTEN ZELLEN (keine Allgemeinplätze).
+- experiments: genau 2 präzise Mini-Experimente für 30 Tage, je mit ziel, massnahme (max. 2 Sätze), owner (Rolle), start (heute+7), metrik (eine Kennzahl/Tag), checkin ("wöch. 10 Min").
+Formuliere deutsch, knapp, ohne Floskeln.
+
 
 Nur JSON:
 {
