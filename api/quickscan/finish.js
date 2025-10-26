@@ -28,59 +28,119 @@ function worstCells(scores) {
   return worst;
 }
 
-function makePdfBuffer({ company, focus, contact, cells, selections, cellScores, kultur, decisions, experiments }) {
-  return new Promise((resolve) => {
-    const doc = new PDFDocument({ size: "A4", margin: 40 });
-    const chunks = [];
-    doc.on("data", (c) => chunks.push(c));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
+async function makePdfBuffer({ company, focus, contact, cells, selections, cellScores, kultur, decisions, experiments }) {
+  const doc = new PDFDocument({ size: "A4", margin: 40 });
+  const chunks = [];
+  doc.on("data", c => chunks.push(c));
+  const done = new Promise(resolve => doc.on("end", () => resolve(Buffer.concat(chunks))));
 
-    doc.fontSize(18).text("QuickScan – Ergebnis", { underline: true });
-    doc.moveDown(0.5);
-    doc.fontSize(11).text(`Firma: ${company || "-"}`);
-    doc.text(`Kontakt: ${contact?.name || "-"} <${contact?.email || "-"}>`);
-    doc.text(`Fokus: ${focus}`);
-    doc.moveDown();
+  // Farben/Fonts
+  const brand = "#0F172A"; // Headlines
+  doc.registerFont("Helvetica", "Helvetica");
+  doc.registerFont("Helvetica-Bold", "Helvetica-Bold");
 
-    doc.fontSize(14).text("Ihre Auswahl (0–3 als Text abgebildet):");
+  // Optional: Logo oben rechts (wenn LOGO_URL gesetzt)
+  try {
+    if (process.env.LOGO_URL) {
+      const resp = await fetch(process.env.LOGO_URL);
+      if (resp.ok) {
+        const buf = Buffer.from(await resp.arrayBuffer());
+        doc.image(buf, 440, 40, { width: 120 }); // passt automatisch
+      }
+    }
+  } catch (_) {}
+
+  // Header
+  doc.fillColor(brand).font("Helvetica-Bold").fontSize(20).text("QuickScan – Ergebnis");
+  doc.moveDown(0.3);
+  doc.font("Helvetica").fontSize(10).fillColor("#000").text(`Firma: ${company || "-"}`);
+  doc.text(`Kontakt: ${contact?.name || "-"} <${contact?.email || "-"}>`);
+  doc.text(`Fokus: ${focus}`);
+  doc.moveDown(0.6);
+
+  // Legende
+  doc.fontSize(10).fillColor("#000").text("Legende:");
+  badge(doc, "🔴 kritisch", "#E53935", doc.x, doc.y+2);
+  badge(doc, "🟠 schwankend", "#FB8C00", doc.x+110, doc.y+2);
+  badge(doc, "🟢 stabil", "#43A047", doc.x+250, doc.y+2);
+  doc.moveDown(2);
+
+  // SECTION 1 – Auswahl + Balken je Zelle
+  doc.font("Helvetica-Bold").fillColor(brand).fontSize(14).text("1) Bewertung der 6 Reibungspunkte");
+  doc.moveDown(0.5);
+
+  const niceName = {
+    auftragsstart: "Anforderungen & Auftragsstart",
+    ressourcen: "Ressourcenverfügbarkeit",
+    uebergabe: "Übergaben & Kommunikation",
+    problem: "Problemmanagement",
+    priorisierung: "Priorisierung & (Fein-)Planung",
+    verantwortung: "Verantwortlichkeiten & Entscheidungen"
+  };
+
+  const startX = 40, barW = 350, barH = 10;
+  Object.entries(cellScores).forEach(([id,score])=>{
+    const cell = cells.find(c=>c.id===id);
+    const pick = selections.find(s=>s.cell_id===id);
+    const label = cell?.options.find(o=>o.id===pick?.selected_option_id)?.label || "-";
+
     doc.moveDown(0.3);
-    cells.forEach((c) => {
-      const pick = selections.find(s=>s.cell_id===c.id);
-      const label = c.options.find(o=>o.id===pick?.selected_option_id)?.label || "-";
-      doc.fontSize(12).text(`• ${c.name}: ${label}`);
-    });
-
-    doc.moveDown();
-    doc.fontSize(14).text("Zell-Scores:");
-    Object.entries(cellScores).forEach(([k,v])=>{
-      doc.fontSize(12).text(`- ${k}: ${v.toFixed(2)} (${ampelfarbe(v)})`);
-    });
-
-    doc.moveDown();
-    doc.fontSize(14).text("KULTUR-Score:");
-    doc.fontSize(12).text(`K (Klarheit): ${kultur.K.toFixed(2)} (${ampelfarbe(kultur.K)})`);
-    doc.text(`U (Umsetzung): ${kultur.U.toFixed(2)} (${ampelfarbe(kultur.U)})`);
-    doc.text(`L (Lernfähigkeit): ${kultur.L.toFixed(2)} (${ampelfarbe(kultur.L)})`);
-    doc.text(`T (Transparenz): ${kultur.T.toFixed(2)} (${ampelfarbe(kultur.T)})`);
-    doc.text(`U (Umfeld): ${kultur.U_umfeld.toFixed(2)} (${ampelfarbe(kultur.U_umfeld)})`);
-    doc.text(`R (Resilienz): ${kultur.R.toFixed(2)} (${ampelfarbe(kultur.R)})`);
-
-    doc.moveDown();
-    doc.fontSize(14).text("3 Entscheidungsfragen:");
-    decisions.forEach((q,i)=>doc.fontSize(12).text(`${i+1}. ${q}`));
-
-    doc.moveDown();
-    doc.fontSize(14).text("2 Mini-Experimente (30 Tage):");
-    experiments.forEach((e,i)=>{
-      doc.fontSize(12).text(`${i+1}. Ziel: ${e.ziel}`);
-      doc.text(`   Maßnahme: ${e.massnahme}`);
-      doc.text(`   Owner: ${e.owner}  |  Start: ${e.start}`);
-      doc.text(`   Metrik: ${e.metrik}  |  Check-in: ${e.checkin}`);
-      doc.moveDown(0.2);
-    });
-
-    doc.end();
+    doc.font("Helvetica-Bold").fillColor("#000").fontSize(11).text(niceName[id] || id);
+    doc.font("Helvetica").fontSize(10).fillColor("#555").text(label, { width: 500 });
+    const y = doc.y + 4;
+    drawBar(doc, startX, y, barW, barH, score);
+    badge(doc, `${score.toFixed(2)} · ${scoreLabel(score)}`, scoreColor(score), startX + barW + 12, y-2);
+    doc.moveDown(1.2);
   });
+
+  // SECTION 2 – KULTUR Ampeln
+  doc.addPage();
+  doc.font("Helvetica-Bold").fillColor(brand).fontSize(14).text("2) KULTUR-Score (0–3) mit Ampel");
+  doc.moveDown(0.8);
+
+  const KMAP = [
+    ["K (Klarheit)", kultur.K],
+    ["U (Umsetzung)", kultur.U],
+    ["L (Lernfähigkeit)", kultur.L],
+    ["T (Transparenz)", kultur.T],
+    ["U (Umfeld)", kultur.U_umfeld],
+    ["R (Resilienz)", kultur.R]
+  ];
+
+  KMAP.forEach(([name,val])=>{
+    doc.font("Helvetica-Bold").fillColor("#000").fontSize(11).text(name);
+    const y = doc.y + 4;
+    drawBar(doc, startX, y, barW, barH, val);
+    badge(doc, `${val.toFixed(2)} · ${scoreLabel(val)}`, scoreColor(val), startX + barW + 12, y-2);
+    doc.moveDown(1.2);
+  });
+
+  // SECTION 3 – Entscheidungsfragen & Experimente
+  doc.addPage();
+  doc.font("Helvetica-Bold").fillColor(brand).fontSize(14).text("3) Kleinstmöglicher Hebel & 30-Tage-Experimente");
+  doc.moveDown(0.6);
+
+  doc.font("Helvetica-Bold").fillColor("#000").fontSize(12).text("Entscheidungsfragen (3x kurz):");
+  doc.font("Helvetica").fontSize(11).fillColor("#333");
+  decisions.forEach((q,i)=> doc.text(`${i+1}. ${q}`));
+  doc.moveDown(0.8);
+
+  doc.font("Helvetica-Bold").fillColor("#000").fontSize(12).text("Experimente (je 30 Tage):");
+  experiments.forEach((e,i)=>{
+    doc.font("Helvetica-Bold").fontSize(11).text(`${i+1}. Ziel: ${e.ziel}`);
+    doc.font("Helvetica").fontSize(11).text(`   Maßnahme: ${e.massnahme}`);
+    doc.text(`   Owner: ${e.owner}    Start: ${e.start}`);
+    doc.text(`   Metrik: ${e.metrik}   Check-in: ${e.checkin}`);
+    doc.moveDown(0.6);
+  });
+
+  // Footer
+  doc.moveDown(1);
+  doc.fontSize(9).fillColor("#777")
+     .text("Businessfalken · QuickScan Auto-Report", { align: "right" });
+
+  doc.end();
+  return done;
 }
 
 export default async function handler(req, res) {
